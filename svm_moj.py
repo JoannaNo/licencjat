@@ -14,7 +14,7 @@ from sklearn.metrics import recall_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import confusion_matrix
 from sklearn.svm import SVC
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve, auc
 from sklearn.cross_validation import KFold
 import random
 import pandas as pd
@@ -48,6 +48,8 @@ gdzie0=np.where(y==0)[0] #wektor z indeksami obrazow lagodnych  (1031)
 np.random.seed(75) #chodzi o to, by za kazdym razem tak samo ustawic random generator
 np.random.shuffle(gdzie1)
 np.random.shuffle(gdzie0)
+los=y.copy()
+np.array(np.random.shuffle(los))
 
 print ("tyle jedynek", gdzie1.size)
 print ("tyle zer", gdzie0.size)
@@ -63,7 +65,7 @@ def prog ():
     df = pd.DataFrame({'C':[], 'TPR':[],'uTPR':[], 'prog j':[], 'acc':[],\
                        'u_acc':[], 'F1':[], 'u_F1':[], 'prec':[], 'u_prec':[]})
     bestTPR = 100 
-    plik=open('wyniki_zrownowazony_prec.txt','w')
+    #plik=open('wyniki_zrownowazony_prbalos.txt','w')
     for i in range(0,9):
         #inicjalizacja trafnosci, precyzji, recall i f1 score
         #acc=np.zeros(folds)
@@ -92,16 +94,21 @@ def prog ():
     
             reszta_0 = [x for x in gdzie0 if (x not in train_index and x not in test_index)]    
             #obrazy testowe:
-            true_test=np.append(gdzie1[test_index], gdzie0[test_index]) #indeksy 0 i 1 (po 248*0.2)=98 użyte do testow
+            #true_test=np.append(gdzie1[test_index], gdzie0[test_index]) #indeksy 0 i 1 (po 248*0.2)=98 użyte do testow
+            true_test=np.append(gdzie1[test_index], np.append(gdzie0[test_index], np.random.choice(reszta_0,len(test_index)*3,False)))
             y_test=y[true_test].astype(int) #wybrane y wziete do testow
             X_test=X_scaled[true_test] #wybrane X przeskalowane wziete do testow
             #klasyfikator losowy
             random.seed(3)
-            y_luck = [1 if random.random()>= .5 else 0 for x in range(len(y_test))] #jeszcze zly klasyfikator
-            
+            #y_luck = [1 if random.random()>= .5 else 0 for x in range(len(y_test))] #jeszcze zly klasyfikator
+#            y_luck = np.random.choice([0,1],len(y_test))
+            y_luck=[0 if x<(4*len(y_test)//5) else 1 for x in range(len(y_test))]
+            np.random.shuffle(y_luck)
+            #print(y_luck)
     
             #obrazy treningowe:
-            true_train=np.append(gdzie1[train_index], gdzie0[train_index]) #indeksy 0 i 1 (po 248*0.8) użyte do treningu
+            true_train=np.append(gdzie1[train_index],gdzie0[train_index] )   
+            #true_train=np.append(gdzie1[train_index], np.append(gdzie0[train_index], np.random.choice(reszta_0,len(train_index)*3,False))) #indeksy 0 i 1 (po 248*0.8) użyte do treningu
             #? Jakie obrazy dosypujemy?
             #true_train=np.append(true_train, gdzie0[gdzie1.size:gdzie1.size+int(0.2*train_index.size)])
             X_train=X_scaled[true_train]
@@ -177,10 +184,9 @@ def prog ():
 #        bestTPR=[x for x in sr_tpr if abs(0.95-x)==np.min(abs(0.95-sr_tpr))][0] 
 #        ind = list(sr_tpr).index(bestTPR)
 #        best_j= p[ind]
-        #bestTPR_luck=[x for x in sr_tpr_luck if abs(0.95-x)==np.min(abs(0.95-sr_tpr_luck))][0] 
-        #ind_luck = list(sr_tpr_luck).index(bestTPR_luck)
-        #best_j_luck= p[ind_luck]
-        #print(sr_tpr_luck)
+#        bestTPR_luck=[x for x in sr_tpr_luck if abs(0.95-x)==np.min(abs(0.95-sr_tpr_luck))][0] 
+#        ind_luck = list(sr_tpr_luck).index(bestTPR_luck)
+#        best_j_luck= p[ind_luck]
         
         #best F1
 #        bestF1 = max(sr_F1)
@@ -217,21 +223,35 @@ def prog ():
         pred1_pro = pro[:,1]
         pred_best_j = [0 if a<best_j else 1 for a in pred1_pro]     
         #pred_best_j_luck = [0 if a<best_j_luck else 1 for a in pred1_pro]               
-        
-    #    for w in range(len(p)):
-    #        sr_tpr.append(np.mean(tpr[:,w]))
-    #        sr_fpr.append(np.mean(fpr[:,w])) 
-        py.plot(sr_fpr,sr_tpr)
-        py.plot(sr_fpr_luck,sr_tpr_luck)
+       
         yerr1 = np.std(tpr,axis=0)
         yerr2 = np.std(tpr_luck,axis=0)
-        
-        py.fill_between(sr_fpr, sr_tpr-yerr1, sr_tpr+yerr1,facecolor='b',alpha=0.1)
-        py.fill_between(sr_fpr_luck, sr_tpr_luck-yerr2, sr_tpr_luck+yerr2,facecolor='g',alpha=0.1)
-        
-        py.xlabel("FPR")
-        py.ylabel('TPR')    
-            
+#        d = auc(sr_fpr, sr_tpr)
+#        d_luck = auc(sr_fpr_luck, sr_tpr_luck)
+#        u_d = 0
+#        u_d_luck = 0
+#        for b in range(len(sr_fpr)-1):
+#            u_d += (.5*(sr_fpr[b+1]-sr_fpr[b])*(yerr1[b+1]**2+yerr1[b]**2)**.5)**2
+#            u_d_luck += (.5*(sr_fpr_luck[b+1]-sr_fpr_luck[b])*(yerr2[b+1]**2+yerr2[b]**2)**.5)**2
+#        u_d=u_d**.5
+#        u_d_luck=u_d_luck**.5
+#            
+#            
+#            
+#            
+#        py.plot(sr_fpr,sr_tpr,label = 'AUC = {:.3f} {} {:.3f}'.format(d,chr(177),u_d))
+#        py.plot(sr_fpr_luck,sr_tpr_luck, label ='AUC_luck = {:.3f} {} {:.3f}'.format(d_luck,chr(177),u_d_luck))
+#        
+#        py.fill_between(sr_fpr, sr_tpr-yerr1, sr_tpr+yerr1,facecolor='b',alpha=0.1)
+#        py.fill_between(sr_fpr_luck, sr_tpr_luck-yerr2, sr_tpr_luck+yerr2,facecolor='g',alpha=0.1)
+#        
+#        py.xlabel("FPR")
+#        py.ylabel('TPR')  
+#        
+#        py.legend(loc=4)
+#        
+#        py.savefig('ROC_svm_zrowtren_niezrow_C_'+str('{:.3f}'.format(C1))+'.png', dpi = 400)
+##           
         '''
             FPR,TPR,th=roc_curve(y_test,pro[:,1]) 
             print(th)
@@ -285,11 +305,11 @@ def prog ():
                           'prec':[sr_precision_luck], 'u_prec':[u_precision_luck]},index=[i+15])
         df=pd.concat([df,tdf])
         
-        plik.write('ktora iteracja: '+str(i*1)+'\n'+'C: '+str(C1)+'\n'+'best TPR: '+ str(bestTPR) \
-                   +'\nbest j: ' +str(best_j)+'\n'+"Finalowa trafnosc SVMa: "+ \
-                   str(acc)+ '\n'+ "Finalowe F1 score SVMa: "+str(f1)+ '\n'+ \
-                   "Finalowe recall SVMa: "+ str(rec)+ '\n'+ \
-                   "Finalowe precision SVMa: " + str(pres)+ '\n'+"-------\n")
+#        plik.write('ktora iteracja: '+str(i*1)+'\n'+'C: '+str(C1)+'\n'+'best TPR: '+ str(bestTPR) \
+#                   +'\nbest j: ' +str(best_j)+'\n'+"Finalowa trafnosc SVMa: "+ \
+#                   str(acc)+ '\n'+ "Finalowe F1 score SVMa: "+str(f1)+ '\n'+ \
+#                   "Finalowe recall SVMa: "+ str(rec)+ '\n'+ \
+#                   "Finalowe precision SVMa: " + str(pres)+ '\n'+"-------\n")
 #        if np.mean(f1)>bestF1:
 #            bestiF1=i*1
 #            bestF1=np.mean(f1)
@@ -299,8 +319,8 @@ def prog ():
     #print (bestF1)
     print('best TPR: ', bestTPR)
     print('best j: ', best_j)
-    df.to_excel('wyn_zrownowazony_prec.xlsx',sheet_name='zrownowazony_prec')
-    plik.close()
+    df.to_excel('wyn_niezrow(tren)_zrow_svm_pres.xlsx',sheet_name='niezrow_zrown_svm_pres')
+ #   plik.close()
     return 0
 
 prog()
